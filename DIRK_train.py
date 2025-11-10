@@ -49,13 +49,12 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)  # for multi-GPU
     np.random.seed(seed)
     random.seed(seed)
-    torch.backends.cudnn.deterministic = True  # 让CUDNN使用确定性算法
-    torch.backends.cudnn.benchmark = False  # 关闭自动寻找最优算法（和上面那行配套）
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def main():
     args = parser.parse_args()
-    # 确保队列大小是批次大小的整数倍
     if args.queue % args.batch_size != 0:
         args.queue = ((args.queue // args.batch_size) + 1) * args.batch_size
         print(f"Queue size adjusted to {args.queue} to be divisible by batch size {args.batch_size}")
@@ -79,7 +78,6 @@ def main():
 
 
 def main_worker(args, output_path):
-    # 设置随机种子
     cudnn.benchmark = True
     cudnn.deterministic = True
     random.seed(args.seed)
@@ -90,30 +88,25 @@ def main_worker(args, output_path):
 
     logging.info('=> Start Training')
 
-    # 设置每次实验的日志文件路径，避免覆盖
     log_file_path = f"{output_path}/{args.dataset}_{t}.csv"
 
-    # load dataloader 加载数据集
+    # load dataloader
     logging.info("=> creating loader '{}'".format(args.dataset))
-    # get_loader 加载训练和测试数据集，同时确定分类任务的类别数量
+    # get_loader
     # train_loader, test_loader, num_class = load_dataset(args, conceal_label)
     train_loader, _, test_loader = load_data(args)
     # print(f"Train loader batch size: {train_loader.batch_size}")
     args.num_class = get_num_classes(dataset_name=args.dataset, data_dir=args.data_dir)
-    # print('len(train_loader.dataset)的值是:', len(train_loader.dataset)) print(
-    # 'train_loader.dataset.given_partial_label_matrix.sum()的值是:',
-    # train_loader.dataset.given_partial_label_matrix.sum())
+    # print('len(train_loader.dataset) value:', len(train_loader.dataset)) 
     logging.info('=> Average number of partial labels: {}'.format(
         train_loader.dataset.given_partial_label_matrix.sum() / len(train_loader.dataset)))
 
-    # set contrastive loss function 设置对比损失函数
+    # set contrastive loss function 
     loss_cont_fn = WeightedConLoss(temperature=args.feat_temp, dist_temprature=args.dist_temp)
 
     best_acc1 = 0
-    best_val_accuracies = []  # 用来存储每次测试后的最佳验证精度
-    # 进行三次实验
-    # for test_run in range(3):  # 进行三次测试
-    #     run_seed = 42 + test_run  # 每次实验不同种子
+    best_val_accuracies = []
+
     set_seed(42)
     # logging.info(f"=> Starting Test Run {test_run + 1}")
     best_acc1 = 0
@@ -126,14 +119,13 @@ def main_worker(args, output_path):
     # scheduler = torch.optim.lr_scheduler.StepLR(S_optimizer, step_size=5, gamma=0.1)
 
     for epoch in range(args.epochs):
-        adjust_learning_rate(args, S_optimizer, epoch)  # 调整优化器的学习率
+        adjust_learning_rate(args, S_optimizer, epoch) 
         start_upd_prot = epoch >= args.prot_start
-        # 训练阶段：输入：训练数据、教师模型、学生模型、优化器、对比损失函数、当前 epoch、超参数、协议标志。
         teach_loss, cont_loss = train(train_loader, Teacher, Student, S_optimizer, loss_cont_fn, epoch, args,
                                       start_upd_prot)
         logging.info("[Training-Epoch {}]: TeachLoss:{:.4f}\t ContrastiveLoss:{:.4f}".format(epoch, teach_loss,
                                                                                              cont_loss))
-        # 测试阶段
+        # test
         val_acc = test(args, epoch, test_loader, Student)
         best_acc1 = max(best_acc1, val_acc)
 
@@ -142,53 +134,21 @@ def main_worker(args, output_path):
         logging.info(
             "[Testing-Epoch {}]:ValidationAccuracy: {:.4f} --Best_valid_acc: {:.4f}".format(epoch, val_acc,
                                                                                             best_acc1))
-        # 保存训练和验证指标到文件
+        # save
         log_metrics_to_file(log_file_path, epoch, teach_loss, cont_loss, val_acc, best_acc1)
         # scheduler.step()
 
-        # best_val_accuracies.append(best_acc1.cpu().numpy())  # 保存每次测试的最佳验证精度
-
-    # 计算三次测试的验证精度平均值和标准差
-    # avg_val_acc = np.mean(best_val_accuracies)
-    # std_val_acc = np.std(best_val_accuracies)
-    # logging.info(f"Average Best Validation Accuracy after 3 runs: {avg_val_acc:.2f} ± {std_val_acc:.2f}")
-    # 保存每个实验的 avg 和 std 到一个汇总文件
-    # summary_file_path = f'{output_path}/experiment_summary_{t}.csv'
-    # with open(summary_file_path, 'a+') as f:
-    #     f.write(f"{avg_val_acc:.2f},{std_val_acc:.2f}\n")
+        # best_val_accuracies.append(best_acc1.cpu().numpy())
 
 
 def log_metrics_to_file(file_path, epoch, teach_loss, cont_loss, val_acc, best_acc1):
-    # 检查文件是否存在，第一次写入时添加表头
     file_exists = os.path.exists(file_path)
     with open(file_path, 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         if not file_exists:
             writer.writerow(['Epoch', 'TeachLoss', 'ContrastiveLoss', 'ValidationAccuracy', 'Best_Valid_Acc'])
         writer.writerow([epoch, teach_loss, cont_loss, val_acc, best_acc1])
-    # # 读取文件并绘图
     # plot_metrics(file_path)
-
-
-def plot_metrics(file_path):
-    # 读取 CSV 文件
-    metrics = pd.read_csv(file_path)
-
-    # 绘制图表
-    plt.figure(figsize=(10, 6))
-    print(metrics.columns)
-    metrics.columns = metrics.columns.str.strip()
-    plt.plot(metrics['Epoch'], metrics['TeachLoss'], label='TeachLoss', marker='o')
-    plt.plot(metrics['Epoch'], metrics['ContrastiveLoss'], label='ContrastiveLoss', marker='o')
-    plt.plot(metrics['Epoch'], metrics['ValidationAccuracy'], label='ValidationAccuracy', marker='o')
-    plt.xlabel('Epoch')
-    plt.ylabel('Metrics')
-    plt.title('Training and Validation Metrics')
-    plt.legend()
-    plt.grid()
-    # 保存图像到文件
-    plt.savefig('Results/0508/cifar100/metrics_plot_cl2sl1.png')  # 保存为当前目录下的 metrics_plot.png 文件
-    plt.show()
 
 
 def train(train_loader, Teacher, Student, S_optimizer, loss_cont_fn, epoch, args, start_upd_prot=False):
@@ -206,24 +166,23 @@ def train(train_loader, Teacher, Student, S_optimizer, loss_cont_fn, epoch, args
         features, partYs, dists, rec_conf_t = Teacher(img_w, img_s, img_distill, partY, target=target.unsqueeze(1))
         # obtain Student's output and feature
         output_s, feat_s = Student(img_s, img_distill)
-        # 打印维度信息用于调试
         # print(f"Epoch {epoch}, Batch {i}:")
-        # print(f"feat_s shape: {feat_s.shape}")      # 应是 [batch_size, 128]
-        # print(f"features shape: {features.shape}")  # 应是 [batch_size + queue_size, 128]
-        # print(f"output_s shape: {output_s.shape}")  # 应是 [batch_size, num_classes]
-        # print(f"rec_conf_t shape: {rec_conf_t.shape}")  # 应是 [batch_size, num_classes]
-        # print(f"dists shape: {dists.shape}")        # 应是 [batch_size + queue_size, 128]
+        # print(f"feat_s shape: {feat_s.shape}")      # [batch_size, 128]
+        # print(f"features shape: {features.shape}")  # [batch_size + queue_size, 128]
+        # print(f"output_s shape: {output_s.shape}")  # [batch_size, num_classes]
+        # print(f"rec_conf_t shape: {rec_conf_t.shape}")  # [batch_size, num_classes]
+        # print(f"dists shape: {dists.shape}")        # [batch_size + queue_size, 128]
         # bind features and partial distribution
         features_cont = torch.cat((feat_s, features), dim=0)
         partY_cont = torch.cat((partY, partYs), dim=0)
         dist_cont = torch.cat((rec_conf_t, dists), dim=0)
 
         batch_size = output_s.shape[0]
-        mask_partial = torch.matmul(partY_cont[:batch_size], partY_cont.T)  #
+        mask_partial = torch.matmul(partY_cont[:batch_size], partY_cont.T)  
         mask_partial[mask_partial != 0] = 1
-        _, pseudo_target = torch.max(dist_cont, dim=1)  #
+        _, pseudo_target = torch.max(dist_cont, dim=1)  
         pseudo_target = pseudo_target.contiguous().view(-1, 1)
-        mask_pseudo_target = torch.eq(pseudo_target[:batch_size], pseudo_target.T).float()  #
+        mask_pseudo_target = torch.eq(pseudo_target[:batch_size], pseudo_target.T).float()  
 
         if start_upd_prot:
             mask = mask_partial * mask_pseudo_target
@@ -232,7 +191,7 @@ def train(train_loader, Teacher, Student, S_optimizer, loss_cont_fn, epoch, args
 
         # contrastive loss
         if args.weight != 0:
-            # weight = args.weight * min(1.0, epoch / 20)  # 前20轮逐渐增加
+            # weight = args.weight * min(1.0, epoch / 20) 
             loss_cont = loss_cont_fn(features=features_cont, dist=dist_cont, partY=partY_cont, mask=mask, epoch=epoch,
                                      args=args, batch_size=partY.shape[0])
         else:
