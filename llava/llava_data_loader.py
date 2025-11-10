@@ -14,7 +14,6 @@ from utils.utils import get_transform
 
 
 class BaseDatasetHandler(Dataset):
-    """基础的数据集处理类，定义了通用的 __init__、__getitem__ 和 __len__ 方法"""
     def __init__(self, X, Y, input_size):
         self.X = X
         self.Y = Y
@@ -32,7 +31,6 @@ class BaseDatasetHandler(Dataset):
 
 
 class CIFAR100DatasetHandler(BaseDatasetHandler):
-    """继承自 BaseDatasetHandler，专门处理 CIFAR-100 数据集。"""
     def __init__(self, X, Y, input_size):
         super().__init__(X, Y, input_size)
 
@@ -43,7 +41,6 @@ class CIFAR100DatasetHandler(BaseDatasetHandler):
         return x, y
 
 class LLaVADatasetLoader:
-    """包含所有的数据加载和处理静态方法，如读取不同数据集、获取数据处理类、生成数据加载器等"""
     def __init__(self, processor, model, root='datasets', dataset='CIFAR100', model_name='llava', pattern='train', input_size=224, batch_size=64, num_workers=0, ):
         self.root = root
         self.dataset = dataset
@@ -96,31 +93,6 @@ class LLaVADatasetLoader:
                 label = line.split('/')[0]
                 test_imgs.append(os.path.join(f'{self.data_path}/images', image).replace('\\', '/'))
                 test_labels.append(id_dict[label])
-
-        return train_imgs, train_labels, test_imgs, test_labels, num_classes
-
-    def read_data_stanford_cars(self):
-        id_dict = {}
-        for i, line in enumerate(open(f'{self.data_path}/stanford_cars_ram_taglist.txt', 'r')):
-            id_dict[line.replace('\n', '')] = i
-        num_classes = len(id_dict)
-        data = scipy.io.loadmat(f'{self.data_path}/cars_annos.mat')
-        annotations = data['annotations']
-        train_imgs = []
-        train_labels = []
-        test_imgs = []
-        test_labels = []
-        for i in range(annotations.shape[1]):
-            name = str(annotations[0, i][0])[2:-2]
-            img_path = os.path.join(self.data_path, name).replace('\\', '/')
-            clas = int(annotations[0, i][5])
-            test = int(annotations[0, i][6])
-            if test == 0:
-                train_imgs.append(img_path)
-                train_labels.append(clas - 1)
-            elif test == 1:
-                test_imgs.append(img_path)
-                test_labels.append(clas - 1)
 
         return train_imgs, train_labels, test_imgs, test_labels, num_classes
 
@@ -195,8 +167,6 @@ class LLaVADatasetLoader:
                 train_data, train_label, test_data, test_label, num_classes = self.read_data_tiny_imagenet_200()
             elif dataset == 'EuroSAT':
                 train_data, train_label, test_data, test_label, num_classes = self.read_data_eruosat()
-            elif dataset == 'stanford_cars':
-                train_data, train_label, test_data, test_label, num_classes = self.read_data_stanford_cars()
             elif dataset == 'caltech-101':
                 train_data, train_label, test_data, test_label, num_classes = self.read_data_caltech_101()
             elif dataset == 'food-101':
@@ -233,5 +203,6 @@ class LLaVADatasetLoader:
         indices_yt_1 = torch.nonzero(torch.eq(torch.tensor(data_handler.YT), 1)).squeeze().tolist()
         unlabeled_dataset = Subset(data_handler, indices_yt_0)
         labeled_dataset = Subset(data_handler, indices_yt_1)
+
 
         return labeled_dataset, unlabeled_dataset
