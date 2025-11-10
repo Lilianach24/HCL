@@ -63,14 +63,6 @@ class CLIPZeroShotClassifier:
 
         accuracy = 100.0 * correct / total
 
-        # if class_names is not None and total > 0:
-        #     print(f"\n随机预测示例 ({min(5, total)}个):")
-        #     sample_indices = np.random.choice(total, min(5, total), replace=False)
-        #     for i in sample_indices:
-        #         true_class = class_names[all_labels[i]]
-        #         pred_class = class_names[all_predictions[i]]
-        #         print(f"真实类别: {true_class}, 预测类别: {pred_class}")
-
         return {
             'accuracy': accuracy,
             'predictions': all_predictions,
@@ -79,3 +71,4 @@ class CLIPZeroShotClassifier:
             'class_names': class_names
 
         }
+
