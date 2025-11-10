@@ -65,8 +65,6 @@ def generate_label(model, processor, pil_image, taglist_label, num_classes):
 
 
 class CIFAR100_handler_train_TF_saved(Dataset):
-    """clip生成标签与真实标签做对比并写入文件保存"""
-
     def __init__(self, root, dataset, X, Y, input_size, model, processor, num_classes=100):
         self.root = root
         self.dataset = dataset
@@ -77,28 +75,28 @@ class CIFAR100_handler_train_TF_saved(Dataset):
         self.transform = get_transform(input_size)
         self.model = model
         self.processor = processor
-        info = load_taglist(dataset="CIFAR100")  # 加载 CIFAR-100 数据集的标签列表
-        taglist_label = info["taglist"]  # 提取 CIFAR-100 数据集的标签列表
-        # all_probs = []  # 保存标签概率
+        info = load_taglist(dataset="CIFAR100")
+        taglist_label = info["taglist"]
+        # all_probs = [] 
         # epsilon = 0.01
         file_path = os.path.join(self.root, self.dataset, "Qwen_VL_7B_label")
         os.makedirs(file_path, exist_ok=True)
         for i in range(len(self.X)):
-            pil_image = Image.fromarray(np.uint8(self.X[i]).transpose((1, 2, 0)))  # 将原始图像数据转换为 PIL 图像对象。
+            pil_image = Image.fromarray(np.uint8(self.X[i]).transpose((1, 2, 0))) 
             output_text = generate_label(model, processor, pil_image, taglist_label, num_classes)
             output_label = int(output_text[0])
             print(f"{i + 1}/{len(self.X)}")
             # prob = np.full(len(taglist_label), epsilon / (len(taglist_label) - 1), dtype=np.float32)
             # prob[output_label] = 1.0 - epsilon
             # all_probs.append(prob)
-            # print(f"真实标签{self.Y[i]}模型输出{output_text}预测标签{output_label}")
+            # print(f"true label:{self.Y[i]}, output text:{output_text}, output label:{output_label}")
             if self.Y[i] == output_label:
                 self.YT[i] = 1
                 file = open(f"{file_path}/train_label_tf.txt", 'a')
                 file.write("1\n")
                 file.close()
             else:
-                self.YT[i] = 0  # 否则标记为 0
+                self.YT[i] = 0
                 file = open(f'{file_path}/train_label_tf.txt', 'a')
                 file.write("0\n")
                 file.close()
@@ -106,10 +104,10 @@ class CIFAR100_handler_train_TF_saved(Dataset):
             file.write(str(self.Y[i]) + '\n')
             file.close()
             file = open(f'{file_path}/train_label_pre.txt', 'a')
-            file.write(str(output_label) + '\n')  # 将 top2 索引保存到文件中
+            file.write(str(output_label) + '\n')
             file.close()
         # np.save(f'{file_path}/label_prob.npy', np.array(all_probs))
-        print("标记完成")
+        print("Label complete!")
 
     def __getitem__(self, index):
         x = Image.fromarray(np.uint8(self.X[index]).transpose((1, 2, 0)))
@@ -141,19 +139,19 @@ class DatasetHandlerTrainClip(Dataset):
         file_path = os.path.join(self.root, self.dataset, "Qwen_VL_7B_label")
         os.makedirs(file_path, exist_ok=True)
         for i in range(len(self.X)):
-            x = Image.open(self.X[i]).convert("RGB")  # 从路径加载图片
+            x = Image.open(self.X[i]).convert("RGB")
             x = self.resolution_transform(x)
             output_text = generate_label(model, processor, x, taglist_label, num_classes)
             output_label = int(output_text[0])
             print(f"{i + 1}/{len(self.X)}")
-            # print(f"真实标签{self.YT[i]}预测文本{output_text}预测标签{output_label}")
+            # print(f"true label:{self.YT[i]}, output text:{output_text}, output label:{output_label}")
             if self.Y[i] == output_label:
                 self.YT[i] = 1
                 file = open(f'{file_path}/train_label_tf.txt', 'a')
                 file.write("1\n")
                 file.close()
             else:
-                self.YT[i] = 0  # 否则标记为 0
+                self.YT[i] = 0
                 file = open(f'{file_path}/train_label_tf.txt', 'a')
                 file.write("0\n")
                 file.close()
@@ -161,9 +159,9 @@ class DatasetHandlerTrainClip(Dataset):
             file.write(str(self.Y[i]) + '\n')
             file.close()
             file = open(f'{file_path}/train_label_pre.txt', 'a')
-            file.write(str(output_label) + '\n')  # 将 top2 索引保存到文件中
+            file.write(str(output_label) + '\n') 
             file.close()
-        print("标记完成")
+        print("Label complete!")
 
     def __getitem__(self, index):
         x = Image.fromarray(np.uint8(self.X[index]).transpose((1, 2, 0)))
@@ -174,4 +172,5 @@ class DatasetHandlerTrainClip(Dataset):
 
     def __len__(self):
         return len(self.X)
+
 
