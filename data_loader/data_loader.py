@@ -121,7 +121,7 @@ class CustomDatasetWithProbs(Dataset):
     def _get_transform(self):
         return transforms.Compose([
             transforms.Resize((self.input_size, self.input_size)),
-            transforms.ToTensor(),  # 自动处理 PIL 图像或 numpy 数组
+            transforms.ToTensor(), 
             transforms.Normalize((0.48145466, 0.4578275, 0.40821073),
                                  (0.26862954, 0.26130258, 0.27577711))
         ])
@@ -362,5 +362,6 @@ class DatasetLoader:
         }
 
         return loader, info
+
 
 
