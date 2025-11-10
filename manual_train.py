@@ -12,20 +12,19 @@ from model.model import CLIPLinearModel
 from utils.utils import set_seed, get_num_classes
 
 
-# 主函数
 def main(opt):
-    # 固定随机种子
+    # setting seed
     set_seed(42)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # 设置参数
-    root_dir = opt.root_dir  # 数据集根目录
-    dataset_name = opt.dataset_name  # 数据集名称
-    num_classes = get_num_classes(dataset_name, root_dir)  # 类别数
+    # Setting parameters
+    root_dir = opt.root_dir
+    dataset_name = opt.dataset_name
+    num_classes = get_num_classes(dataset_name, root_dir) 
     batch_size = opt.batch_size
     num_epochs = opt.num_epochs
     learning_rate = float(opt.learning_rate)
     input_size = 224
-    # 准备日志文件夹
+    # setting logs
     # logs = set_log('./Saved', dataset_name)
     # output_path = logs['logs']
     output_path = os.path.join("manual_result", dataset_name)
@@ -41,7 +40,6 @@ def main(opt):
                         ])
     logging.info(opt.__dict__)
 
-    # 创建训练集
     train_dataset = CustomDatasetWithProbs(
         root_dir=root_dir,
         dataset_name=dataset_name,
@@ -50,28 +48,22 @@ def main(opt):
         conflict_only = True
     )
 
-    # 创建测试集（使用 BaseDatasetHandler 或类似类）
     test_dataset = CustomDatasetWithProbs(
         root_dir=root_dir,
         dataset_name=dataset_name,
-        pattern='val',  # 假设 DatasetLoader 支持 'val' 模式
+        pattern='val',
         input_size=input_size,
         conflict_only = True
     )
 
-    # 创建数据加载器
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    # 创建模型
     model = CLIPLinearModel(num_classes=num_classes).to(device)
-    # 定义优化器
     optimizer = torch.optim.AdamW(model.linear.parameters(), lr=learning_rate, weight_decay=1e-4)
-    # 学习率调度器
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
-    # 训练模型
-    print("开始训练模型...")
+    print("Start training the model...")
     train_s1_only(
         model=model,
         train_loader=train_loader,
@@ -123,18 +115,17 @@ def train_s1_only(model, train_loader, test_loader, optimizer, scheduler, device
             s_values = s_values.to(device)
             label_probs = label_probs.to(device).float()
 
-            # 只保留 s=1 的冲突样本
             mask = (s_values == 1)
             if mask.sum() == 0:
-                continue  # 本 batch 无 s=1 样本，跳过
+                continue
 
             images = images[mask]
             labels = labels[mask]
-            label_probs = label_probs[mask]  # 如果需要，可用于损失函数
+            label_probs = label_probs[mask]
 
             optimizer.zero_grad()
             _, outputs = model(images)
-            loss = c_loss(outputs, labels)  # 使用标准交叉熵即可
+            loss = c_loss(outputs, labels)
             loss.backward()
             optimizer.step()
 
@@ -154,7 +145,6 @@ def train_s1_only(model, train_loader, test_loader, optimizer, scheduler, device
 
         test_loss, test_acc = validate(model, test_loader, device)
 
-        # 保存最佳模型
         if test_acc > best_test_acc:
             best_test_acc = test_acc
             # save_model(model, output_path, dataset_name, test_acc)
@@ -166,32 +156,25 @@ def train_s1_only(model, train_loader, test_loader, optimizer, scheduler, device
             f'Test Loss: {test_loss:.4f}, '
             f'Test Acc: {test_acc:.2f}%')
 
-    # 保存最终训练得到的模型
     # save_model(model, output_path, dataset_name, test_acc)
-    print(f'完成训练，Best Test Accuracy: {best_test_acc:.2f}%')
+    print(f'Finish training，Best Test Accuracy: {best_test_acc:.2f}%')
 
 def save_model(model, output_path, dataset_name, test_acc):
     t = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     model_path = f"{output_path}/checkpoint_{dataset_name}_{t}_{test_acc:.2f}.pth"
     torch.save(model.state_dict(), model_path)
-    print(f"模型已保存到: {model_path}")
+    print(f"The model has been saved to: {model_path}")
 
 
 if __name__ == "__main__":
     """Parse input arguments"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_dir', type=str, dest='root_dir', default='./datasets', help='dataset root dir')
-    # 指定预训练模型的文件路径。如果该参数不为空，程序会加载这个路径下的模型权重，以便继续训练整个模型
-    # 当你想要在已有模型的基础上继续训练时，可以使用这个参数指定预训练模型的位置。
-    parser.add_argument('--pretrained_model', type=str, default='',
-                        dest='pretrained_model', required=False, help='continue to train model')
-    # 指定训练数据集
     parser.add_argument('--dataset_name', type=str, default='CIFAR100',
                         dest='dataset_name', required=False, help='dataset name')
-    # 指定批次大小
     parser.add_argument('--batch_size', type=int, dest='batch_size', default=64, help='batch size')
-    # 指定训练轮数
     parser.add_argument('--num_epochs', type=int, default=30, dest='num_epochs', help='number of epochs')
     parser.add_argument('--learning_rate', type=float, default=0.0005, dest='learning_rate', help='learning rate')
     opt = parser.parse_args()
+
     main(opt)
