@@ -22,11 +22,6 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# def print_write(f: TextIO, s: str):
-#     """将字符串 s 打印到控制台，并将其写入文件 f 中"""
-#     print(s)
-#     f.write(s + "\n")
-
 
 def load_taglist(
         dataset: str
@@ -63,7 +58,7 @@ def main():
     parser.add_argument('--data_dir', default='./datasets', type=str)
     parser.add_argument("--dataset", type=str,
                         choices=(
-                            "CIFAR100", "tiny-imagenet-200", "stanford_cars", "caltech-101", "food-101", "EuroSAT", "cifar10", "fmnist", "dtd"),
+                            "CIFAR100", "tiny-imagenet-200", "stanford_cars", "caltech-101", "food-101", "dtd"),
                         default="CIFAR100")
     parser.add_argument("--input-size", type=int, default=224, choices=(224, 384))
     # miscellaneous
@@ -122,8 +117,8 @@ def main():
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
-            logging.FileHandler(summary_file, mode='a'),  # 追加模式
-            logging.StreamHandler()  # 同时输出到控制台
+            logging.FileHandler(summary_file, mode='a'), 
+            logging.StreamHandler() 
         ]
     )
 
@@ -132,9 +127,7 @@ def main():
     #     logging.info(f"{key}: {getattr(args, key)}")
     # logging.info("****************")
     logging.info(args)
-    # 设置每次实验的日志文件路径，避免覆盖
     log_file_path = f"{output_dir}/{args.dataset}_{t}.csv"
-    # 写入表头
     with open(log_file_path, 'a', newline='') as csvfile:
         csv.writer(csvfile).writerow(['Epoch', 'Train_Acc', 'Test_Acc', 'Best_Acc'])
 
@@ -328,3 +321,4 @@ def test(model, test_loader, args, epoch, summary_file):
 
 if __name__ == '__main__':
     main()
+
