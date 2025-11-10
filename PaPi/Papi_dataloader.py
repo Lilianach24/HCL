@@ -18,20 +18,13 @@ def convert_to_rgb(image):
 
 class CIFAR100Partialize(Dataset):
     def __init__(self, X, Y, num_classes, data_path):
-        self.X = X  # 图像数据
-        self.Y = Y  # 真实标签
+        self.X = X
+        self.Y = Y
         self.num_classes = num_classes
         N = len(Y)
         self.given_partial_label_matrix = torch.zeros(N, num_classes)
         torch.manual_seed(1)
         np.random.seed(1)
-        # for i in range(len(self.X)):
-        #     r = random.randint(0, num_classes - 1)
-        #     if self.Y[i] == r:
-        #         self.given_partial_label_matrix[i][r] = 1.0
-        #     else:
-        #         self.given_partial_label_matrix[i][:] = 1.0
-        #         self.given_partial_label_matrix[i][r] = 0.0
 
         clip_preds = np.loadtxt(f"{data_path}/CLIP-L14/train_label_pre.txt", dtype=int)
         qwen_preds = np.loadtxt(f"{data_path}/Qwen_VL_7B_label/train_label_pre.txt", dtype=int)
@@ -41,7 +34,6 @@ class CIFAR100Partialize(Dataset):
             qwen_pred = int(qwen_preds[i])
             true_label = int(Y[i])
 
-            # 超出范围的默认改为0
             if not (0 <= clip_pred < num_classes):
                 clip_pred = 0
             if not (0 <= qwen_pred < num_classes):
@@ -50,10 +42,8 @@ class CIFAR100Partialize(Dataset):
                 true_label = 0
 
             if clip_pred == qwen_pred:
-                # 一致：只标记 clip_pred
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
             else:
-                # 不一致：标记三者
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
                 self.given_partial_label_matrix[i][qwen_pred] = 1.0
                 self.given_partial_label_matrix[i][true_label] = 1.0
@@ -108,7 +98,6 @@ class DatasetPartialize(Dataset):
             qwen_pred = int(qwen_preds[i])
             true_label = int(Y[i])
 
-            # 超出范围的默认改为0
             if not (0 <= clip_pred < num_classes):
                 clip_pred = 0
             if not (0 <= qwen_pred < num_classes):
@@ -117,10 +106,8 @@ class DatasetPartialize(Dataset):
                 true_label = 0
 
             if clip_pred == qwen_pred:
-                # 一致：只标记 clip_pred
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
             else:
-                # 不一致：标记三者
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
                 self.given_partial_label_matrix[i][qwen_pred] = 1.0
                 self.given_partial_label_matrix[i][true_label] = 1.0
@@ -167,8 +154,6 @@ def get_data_handler(args):
     else:
         if dataset == 'tiny-imagenet-200':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(processor=None, model=None, dataset=dataset).read_data_tiny_imagenet_200()
-        elif dataset == 'stanford_cars':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(processor=None, model=None, dataset=dataset).read_data_stanford_cars()
         elif dataset == 'caltech-101':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(processor=None, model=None, dataset=dataset).read_data_caltech_101()
         elif dataset == 'food-101':
@@ -176,12 +161,6 @@ def get_data_handler(args):
         elif dataset == 'EuroSAT':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_eruosat()
-        elif dataset == 'fmnist':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
-                processor=None, model=None, dataset=dataset).read_data_fmnist()
-        elif dataset == 'cifar10':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
-                processor=None, model=None, dataset=dataset).read_data_cifar10()
         elif dataset == 'dtd':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_dtd()
@@ -212,3 +191,4 @@ def load_data(args):
     )
 
     return partial_training_dataloader, partialY_matrix, test_loader
+
