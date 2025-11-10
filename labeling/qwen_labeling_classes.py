@@ -22,55 +22,21 @@ def resolution_transform(image_size=384):
 def generate_label(model, processor, pil_image, taglist_label, num_classes):
     options = "\n".join([f"{idx}: {name}" for idx, name in enumerate(taglist_label)])
 
-    # messages = [
-    #     {
-    #         "role": "user",
-    #         "content": [
-    #             {"type": "image", "image": pil_image},
-    #             {"type": "text", "text": f"""[步骤1]分析图片主体特征
-    #                                         [步骤2]对比选项描述相似度
-    #                                         [步骤3]直接输出最匹配一个的数字编号，无需解释,无需输出类别名称，数字编号必须在0-{num_classes - 1}之间
-    #                                         可用标签：{options}
-    #                                         最终答案：数字"""
-    #              },
-    #         ],
-    #     }
-    # ]
-    # messages = [
-    #     {
-    #         "role": "user",
-    #         "content": [
-    #             {"type": "image", "image": pil_image},
-    #             {
-    #                 "type": "text",
-    #                 "text": (
-    #                     f"[Step 1] Carefully analyze the main object and details in the image.\n"
-    #                     f"[Step 2] Compare the image with the following candidate labels and select the best match.\n"
-    #                     f"[Step 3] Directly output ONLY the numeric index of the most suitable label without any explanation, text, or punctuation.\n"
-    #                     f"The numeric index must be an integer between 0 and {num_classes - 1}.\n\n"
-    #                     f"Available labels:\n{options}\n\n"
-    #                     f"Final answer: output the numeric index only."
-    #                 )
-    #             },
-    #         ],
-    #     }
-    # ]
     messages = [
         {
             "role": "user",
             "content": [
                 {"type": "image", "image": pil_image},
-                {"type": "text","text": f"""Classify this image.
-                                            Choose the best matching label from these options:{options}
-                                            Return only the index (0 to {num_classes - 1}) of your choice.
-                                            Do not return any text, words, or explanations.
-                                            """
-                },
+                {"type": "text", "text": f"""[步骤1]分析图片主体特征
+                                            [步骤2]对比选项描述相似度
+                                            [步骤3]直接输出最匹配一个的数字编号，无需解释,无需输出类别名称，数字编号必须在0-{num_classes - 1}之间
+                                            可用标签：{options}
+                                            最终答案：数字"""
+                 },
             ],
         }
     ]
 
-    # 准备输入
     text = processor.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
@@ -85,7 +51,6 @@ def generate_label(model, processor, pil_image, taglist_label, num_classes):
     )
     inputs = inputs.to(model.device)
 
-    # 生成描述
     generated_ids = model.generate(**inputs, max_new_tokens=128)
     generated_ids_trimmed = [
         out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
@@ -95,42 +60,6 @@ def generate_label(model, processor, pil_image, taglist_label, num_classes):
         skip_special_tokens=True,
         clean_up_tokenization_spaces=False
     )
-
-    # # 如果不需要概率，返回预测标签和全零概率数组
-    # if not return_probs:
-    #     return output_text, np.zeros(num_classes)
-    # else:
-    #     prob_prompt = f"""给图片匹配以下每个类别的概率（0-100，总和尽量100），用逗号分隔：
-    #     {options}
-    #     示例输出：30,5,20,...（共{num_classes}个数字）"""
-    #
-    #     # 同样严格构造输入
-    #     prob_messages = [
-    #         {"role": "user", "content": [{"type": "image", "image": pil_image}, {"type": "text", "text": prob_prompt}]}]
-    #     prob_text = processor.apply_chat_template(prob_messages, tokenize=False, add_generation_prompt=True)
-    #     prob_image_inputs, _ = process_vision_info(prob_messages)
-    #
-    #     prob_inputs = processor(
-    #         text=[prob_text],
-    #         images=prob_image_inputs,
-    #         return_tensors="pt"
-    #     ).to(model.device)
-    #
-    #     # 生成概率分数
-    #     prob_ids = model.generate(**prob_inputs, max_new_tokens=num_classes * 4,
-    #                               pad_token_id=processor.tokenizer.pad_token_id)
-    #     prob_text = processor.batch_decode(prob_ids, skip_special_tokens=True)[0].strip()
-    #
-    #     # 提取数字，忽略其他字符
-    #     scores = [int(s) for s in prob_text.split(',') if s.strip().isdigit()]
-    #     # 确保长度匹配，不足补0，超出截断
-    #     if len(scores) < num_classes:
-    #         scores += [0] * (num_classes - len(scores))
-    #     else:
-    #         scores = scores[:num_classes]
-    #     # 转换为0-1的概率（归一化）
-    #     total = sum(scores)
-    #     probs = np.array(scores) / total if total != 0 else np.ones(num_classes) / num_classes
 
     return output_text
 
@@ -245,3 +174,4 @@ class DatasetHandlerTrainClip(Dataset):
 
     def __len__(self):
         return len(self.X)
+
