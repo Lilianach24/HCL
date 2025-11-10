@@ -32,7 +32,7 @@ def load_taglist(
     info = {"taglist": taglist}
     return info
 
-# 设置随机种子确保结果可复现
+# set seed
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -43,41 +43,28 @@ def set_seed(seed):
 
 def get_num_classes(dataset_name, data_dir="../datasets"):
     """
-    根据数据集名称获取类别数量
-
-    参数:
-    - dataset_name: 数据集名称，如 "CIFAR100", "tiny-imagenet-200" 等
-    - data_dir: 数据集根目录，包含类别名称文件
-
-    返回:
-    - num_classes: 类别数量
+    Get the number of classes based on the dataset name
     """
-    # 定义不同数据集的类别名称文件路径
     data_path = os.path.join(data_dir, dataset_name)
     taglist_files = {
         "CIFAR100": f"{data_path}/{dataset_name}_ram_taglist.txt",
         "tiny-imagenet-200": f"{data_path}/{dataset_name}_ram_taglist.txt",
-        "stanford_cars": f"{data_path}/{dataset_name}_ram_taglist.txt",
         "caltech-101": f"{data_path}/{dataset_name}_ram_taglist.txt",
         "food-101": f"{data_path}/{dataset_name}_ram_taglist.txt",
         "EuroSAT": f"{data_path}/{dataset_name}_ram_taglist.txt",
-        "cifar10": f"{data_path}/{dataset_name}_ram_taglist.txt",
-        "fmnist": f"{data_path}/{dataset_name}_ram_taglist.txt",
         "dtd": f"{data_path}/{dataset_name}_ram_taglist.txt",
     }
 
-    # 检查数据集是否支持
     if dataset_name not in taglist_files:
-        raise ValueError(f"不支持的数据集: {dataset_name}")
+        raise ValueError(f"Unsupported datasets: {dataset_name}")
 
-    # 读取类别名称文件
     taglist_file = taglist_files[dataset_name]
     try:
         with open(taglist_file, 'r') as f:
             classes = [line.strip() for line in f.readlines()]
         return len(classes)
     except FileNotFoundError:
-        print(f"错误: 找不到类别名称文件 {taglist_file}")
+        print(f"Error: category name file not found {taglist_file}")
 
 
 
@@ -106,5 +93,6 @@ class AverageMeter(object):
         return fmtstr.format(**self.__dict__)
 
 # if __name__ == "__main__":
-#     num = get_num_classes(dataset_name="stanford_cars", data_dir="../datasets")
+#     num = get_num_classes(dataset_name="CIFAR100", data_dir="../datasets")
 #     print(num)
+
