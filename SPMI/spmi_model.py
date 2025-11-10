@@ -26,13 +26,12 @@ class Model(nn.Module):
 class clip_mlinear(nn.Module):
     def __init__(self, input_dim, num_class):
         super(clip_mlinear, self).__init__()
-        # 只有一个线性层
         # self.classifier = nn.Linear(input_dim, num_class)
         # self.fc1 = nn.Linear(input_dim, 512)
         # self.fc2 = nn.Linear(512, num_class)
         self.fc = CLIPLinearModel(num_classes=num_class)
 
-        # 激活函数
+        # Activation function
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -40,5 +39,4 @@ class clip_mlinear(nn.Module):
         x = self.fc(x)
         return x
 
-        # 输入直接通过线性层得到输出
         # return self.classifier(x)
