@@ -24,7 +24,6 @@ class Trainer:
         # self.save_log_dir = logs['logs']
 
     def valid(self):
-        # 测试阶段
         self.model.eval()
         test_loss = 0.0
         test_correct = 0
@@ -36,14 +35,13 @@ class Trainer:
                 labels = labels.to(self.device)
 
                 _, outputs = self.model(images)
-                loss = c_loss(outputs, labels)  # 测试时使用简单损失函数
+                loss = c_loss(outputs, labels) 
 
                 test_loss += loss.item()
                 _, predicted = outputs.max(1)
                 test_total += labels.size(0)
                 test_correct += predicted.eq(labels).sum().item()
 
-        # 计算测试集准确率
         test_acc = 100. * test_correct / test_total
 
         return test_loss, test_acc
@@ -52,7 +50,6 @@ class Trainer:
         best_test_acc = 0.0
 
         for epoch in range(self.num_epochs):
-            # 训练阶段
             self.model.train()
             train_loss = 0.0
             train_correct = 0
@@ -79,35 +76,34 @@ class Trainer:
                     self.logging.info(f'Epoch: {epoch + 1}/{self.num_epochs}, Batch: {batch_idx + 1}/{len(self.train_loader)}, '
                           f'Train Loss: {train_loss / (batch_idx + 1):.4f}, Train Acc: {100. * train_correct / train_total:.2f}%')
 
-            # 学习率调整
+            # Learning rate adjustment
             if self.scheduler:
                 self.scheduler.step()
 
-            # 测试阶段
+            # test
             test_loss, test_acc = self.valid()
 
-            # 保存最佳模型
+            # save best model
             if test_acc > best_test_acc:
                 best_test_acc = test_acc
                 # self._save_model(epoch)
 
-            # 打印本轮训练和测试结果
             self.logging.info(f'Epoch: {epoch + 1}/{self.num_epochs}, '
                   f'Train Loss: {train_loss / len(self.train_loader):.4f}, Train Acc: {100. * train_correct / train_total:.2f}%, '
                   f'Test Loss: {test_loss / len(self.test_loader):.4f}, Test Acc: {test_acc:.2f}%, learning rate: {self.optimizer.param_groups[0]["lr"]}')
-            # 保存每一轮的准确率
+
             with open(self.logs, "a") as f:
                 writer = csv.writer(f)
                 if epoch == 0:
                     writer.writerow(["Epoch", "TrainAcc", "TestAcc", "TrainLoss", "TestLoss"])
                 writer.writerow([epoch + 1, 100. * train_correct / train_total, test_acc, train_loss / len(self.train_loader), test_loss / len(self.test_loader)])
-        #保存最终训练得到的模型
+        #Save the final trained model
         # self._save_model()
         print(f'Best Test Accuracy: {best_test_acc:.2f}%')
 
     def _save_model(self):
-        # 保存模型
         t = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         model_path = f'{self.output_path}/checkpoint_clip_{t}.pth'
         torch.save(self.model.state_dict(), model_path)
-        print(f"模型已保存到: {model_path}")
+
+        print(f"The model has been saved to: {model_path}")
