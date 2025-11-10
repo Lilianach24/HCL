@@ -1,0 +1,87 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class PaPiLoss(nn.Module):
+    def __init__(self, predicted_score_cls, pseudo_label_weight=0.99):
+        super().__init__()
+        self.predicted_score_cls1 = predicted_score_cls
+        self.predicted_score_cls2 = predicted_score_cls
+        self.init_predicted_score_cls = predicted_score_cls.detach()
+        self.pseudo_label_weight = pseudo_label_weight
+        self.alpha = 0.0  # 初始 alpha
+        self.epoch = 0
+
+    def set_alpha(self, epoch, args):
+        self.epoch = epoch
+        self.alpha = min((epoch / 10) * args.alpha_weight, args.alpha_weight)
+
+    def set_pseudo_label_weight(self, epoch, args):
+        start = args.pseudo_label_weight_range[0]
+        end = args.pseudo_label_weight_range[1]
+        self.pseudo_label_weight = 1. * epoch / args.epochs * (end - start) + start
+
+    def update_weight_byclsout1(self, cls_predicted_score, batch_index, batch_partial_Y, args):
+        with torch.no_grad():
+            y_pred_raw_probas = torch.softmax(cls_predicted_score, dim=1)
+            y_pred_raw_probas = torch.clamp(y_pred_raw_probas, min=1e-8)
+
+            revisedY_raw = batch_partial_Y.clone()
+            revisedY_raw = revisedY_raw * y_pred_raw_probas
+            revisedY_raw = revisedY_raw / (revisedY_raw.sum(dim=1, keepdim=True) + 1e-6)
+
+            cls_pseudo_label = revisedY_raw.detach()
+
+            self.predicted_score_cls1[batch_index, :] = \
+                self.pseudo_label_weight * self.predicted_score_cls1[batch_index, :] + \
+                (1 - self.pseudo_label_weight) * cls_pseudo_label
+
+    def forward(self, cls_out1, cls_out2,
+                logits_prot1, logits_prot2,
+                logits_prot_1_mix, logits_prot_2_mix,
+                idx_rp, Lambda, index, args, sim_criterion):
+
+        # 分类 softmax 概率
+        y_pred_1_probas = torch.softmax(cls_out1, dim=1)
+        y_pred_1_probas = torch.clamp(y_pred_1_probas, min=1e-8)  # 防止 log(0)
+
+        # prototype logits 转换为 log-softmax，用于 KL loss
+        prot_pred_1_mix_probas_log = F.log_softmax(logits_prot_1_mix / args.tau_proto, dim=1)
+        prot_pred_2_mix_probas_log = F.log_softmax(logits_prot_2_mix / args.tau_proto, dim=1)
+
+        # 当前 batch 的伪标签
+        soft_positive_label_target1 = self.predicted_score_cls1[index, :].clone().detach()
+        soft_positive_label_target1_rp = self.predicted_score_cls1[index[idx_rp], :].clone().detach()
+
+        # 分类 loss（交叉熵的 soft 标签版本）
+        cls_loss_all_1 = soft_positive_label_target1 * torch.log(y_pred_1_probas)
+        cls_loss_1 = -cls_loss_all_1.sum(dim=1).mean()
+
+        # 相似性 loss（对比 KL）
+        sim_loss_2_1 = Lambda * sim_criterion(prot_pred_1_mix_probas_log, soft_positive_label_target1) + \
+                       (1 - Lambda) * sim_criterion(prot_pred_1_mix_probas_log, soft_positive_label_target1_rp)
+
+        sim_loss_2_2 = Lambda * sim_criterion(prot_pred_2_mix_probas_log, soft_positive_label_target1) + \
+                       (1 - Lambda) * sim_criterion(prot_pred_2_mix_probas_log, soft_positive_label_target1_rp)
+
+        sim_loss_2 = sim_loss_2_1 + sim_loss_2_2
+
+        # warmup 机制：训练前 N 个 epoch 只用分类 loss
+        if hasattr(args, 'warmup_epochs') and self.epoch < args.warmup_epochs:
+            loss = cls_loss_1
+        else:
+            loss = cls_loss_1 + self.alpha * sim_loss_2
+
+        # NaN 检查
+        if torch.isnan(cls_loss_1) or torch.isnan(sim_loss_2) or torch.isnan(loss):
+            print("[NaN Detected in PaPiLoss]")
+            print("cls_loss_1:", cls_loss_1.item())
+            print("sim_loss_2:", sim_loss_2.item())
+            print("alpha:", self.alpha)
+            raise ValueError("Loss became NaN")
+
+        # 防止 loss 爆炸
+        loss = torch.clamp(loss, max=20.0)
+
+        return cls_loss_1, sim_loss_2, self.alpha
