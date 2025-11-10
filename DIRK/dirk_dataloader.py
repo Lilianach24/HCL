@@ -16,15 +16,14 @@ def convert_to_rgb(image):
 
 class CIFAR100Partialize(Dataset):
     def __init__(self, X, Y, num_classes, data_path):
-        self.X = X  # 图像数据
-        self.Y = Y  # 真实标签
+        self.X = X
+        self.Y = Y
         self.num_classes = num_classes
         N = len(Y)
         self.given_partial_label_matrix = torch.zeros(N, num_classes)
         torch.manual_seed(1)
         np.random.seed(1)
 
-        # 加载预训练模型预测结果
         clip_preds = np.loadtxt(f"{data_path}/CLIP-L14/train_label_pre.txt", dtype=int)
         qwen_preds = np.loadtxt(f"{data_path}/Qwen_VL_7B_label/train_label_pre.txt", dtype=int)
 
@@ -33,7 +32,6 @@ class CIFAR100Partialize(Dataset):
             qwen_pred = int(qwen_preds[i])
             true_label = int(Y[i])
 
-            # 超出范围的默认改为0
             if not (0 <= clip_pred < num_classes):
                 clip_pred = 0
             if not (0 <= qwen_pred < num_classes):
@@ -42,15 +40,12 @@ class CIFAR100Partialize(Dataset):
                 true_label = 0
 
             if clip_pred == qwen_pred:
-                # 一致：只标记 clip_pred
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
             else:
-                # 不一致：标记三者
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
                 self.given_partial_label_matrix[i][qwen_pred] = 1.0
                 self.given_partial_label_matrix[i][true_label] = 1.0
 
-        # 弱增强变换 - 用于img_w
         self.transform1 = transforms.Compose([
             convert_to_rgb,
             transforms.RandomHorizontalFlip(),
@@ -60,7 +55,6 @@ class CIFAR100Partialize(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        # 强增强变换 - 用于img_s
         self.transform2 = transforms.Compose([
             convert_to_rgb,
             transforms.RandomHorizontalFlip(),
@@ -72,15 +66,14 @@ class CIFAR100Partialize(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        # 蒸馏增强变换 - 用于img_distill
         self.transform3 = transforms.Compose([
             convert_to_rgb,
-            transforms.RandomHorizontalFlip(p=0.7),  # 更高的翻转概率
-            transforms.RandomRotation(15),  # 随机旋转
-            transforms.RandomCrop(32, 6, padding_mode='reflect'),  # 更大的裁剪
+            transforms.RandomHorizontalFlip(p=0.7),
+            transforms.RandomRotation(15),
+            transforms.RandomCrop(32, 6, padding_mode='reflect'),
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            Cutout(n_holes=1, length=24),  # 更大的Cutout
+            Cutout(n_holes=1, length=24),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
@@ -107,7 +100,6 @@ class DatasetPartialize(Dataset):
         torch.manual_seed(1)
         np.random.seed(1)
 
-        # 加载预训练模型预测结果
         clip_preds = np.loadtxt(f"{data_path}/CLIP-L14/train_label_pre.txt", dtype=int)
         qwen_preds = np.loadtxt(f"{data_path}/Qwen_VL_7B_label/train_label_pre.txt", dtype=int)
 
@@ -116,7 +108,6 @@ class DatasetPartialize(Dataset):
             qwen_pred = int(qwen_preds[i])
             true_label = int(Y[i])
 
-            # 超出范围的默认改为0
             if not (0 <= clip_pred < num_classes):
                 clip_pred = 0
             if not (0 <= qwen_pred < num_classes):
@@ -125,15 +116,12 @@ class DatasetPartialize(Dataset):
                 true_label = 0
 
             if clip_pred == qwen_pred:
-                # 一致：只标记 clip_pred
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
             else:
-                # 不一致：标记三者
                 self.given_partial_label_matrix[i][clip_pred] = 1.0
                 self.given_partial_label_matrix[i][qwen_pred] = 1.0
                 self.given_partial_label_matrix[i][true_label] = 1.0
 
-        # 弱增强变换 - 用于img_w
         self.transform1 = transforms.Compose([
             convert_to_rgb,
             transforms.RandomResizedCrop(64),
@@ -143,7 +131,6 @@ class DatasetPartialize(Dataset):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
-        # 强增强变换 - 用于img_s
         self.transform2 = transforms.Compose([
             convert_to_rgb,
             transforms.RandomResizedCrop(64),
@@ -155,15 +142,14 @@ class DatasetPartialize(Dataset):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
-        # 蒸馏增强变换 - 用于img_distill
         self.transform3 = transforms.Compose([
             convert_to_rgb,
-            transforms.RandomResizedCrop(64, scale=(0.3, 0.9)),  # 更宽的缩放范围
-            transforms.RandomHorizontalFlip(p=0.8),  # 更高的翻转概率
-            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),  # 颜色抖动
+            transforms.RandomResizedCrop(64, scale=(0.3, 0.9)),
+            transforms.RandomHorizontalFlip(p=0.8),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
-            Cutout(n_holes=1, length=24),  # 中等大小的Cutout
+            Cutout(n_holes=1, length=24),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
@@ -192,9 +178,6 @@ def get_data_handler(args):
         if dataset == 'tiny-imagenet-200':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_tiny_imagenet_200()
-        elif dataset == 'stanford_cars':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
-                processor=None, model=None, dataset=dataset).read_data_stanford_cars()
         elif dataset == 'caltech-101':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_caltech_101()
@@ -204,12 +187,6 @@ def get_data_handler(args):
         elif dataset == 'EuroSAT':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_eruosat()
-        elif dataset == 'fmnist':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
-                processor=None, model=None, dataset=dataset).read_data_fmnist()
-        elif dataset == 'cifar10':
-            train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
-                processor=None, model=None, dataset=dataset).read_data_cifar10()
         elif dataset == 'dtd':
             train_data, train_label, test_data, test_label, num_classes = DatasetLoader(
                 processor=None, model=None, dataset=dataset).read_data_dtd()
@@ -239,5 +216,6 @@ def load_data(args):
         num_workers=args.num_workers,
         drop_last=True
     )
+
 
     return partial_training_dataloader, partialY_matrix, test_loader
