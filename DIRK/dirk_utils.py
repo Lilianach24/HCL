@@ -11,7 +11,7 @@ def generate_instancedependent_candidate_labels(model, train_X, train_Y,RATE=0.4
         k = int(torch.max(train_Y) - torch.min(train_Y) + 1)
         n = train_Y.shape[0]
         model = model.cuda()
-        train_Y = torch.nn.functional.one_hot(train_Y, num_classes=k) # 真实标签始终被保留，且对应位置为 1。
+        train_Y = torch.nn.functional.one_hot(train_Y, num_classes=k) 
         avg_C = 0
         partialY_list = []
         rate, batch_size = RATE, 2000
@@ -24,10 +24,10 @@ def generate_instancedependent_candidate_labels(model, train_X, train_Y,RATE=0.4
 
             outputs = model(train_X_part)
 
-            train_p_Y = train_Y[i * batch_size: b_end].clone().detach() # train_p_Y 初始化为 train_Y 的克隆：
+            train_p_Y = train_Y[i * batch_size: b_end].clone().detach() 
 
             partial_rate_array = F.softmax(outputs, dim=1).clone().detach()
-            partial_rate_array[torch.where(train_p_Y == 1)] = 0 # 将真实标签的概率置为 0，确保不会重复选择真实标签作为候选。
+            partial_rate_array[torch.where(train_p_Y == 1)] = 0 
             partial_rate_array = partial_rate_array / torch.max(partial_rate_array, dim=1, keepdim=True)[0]
             partial_rate_array = partial_rate_array / partial_rate_array.mean(dim=1, keepdim=True) * rate
             partial_rate_array[partial_rate_array > 1.0] = 1.0
@@ -35,7 +35,7 @@ def generate_instancedependent_candidate_labels(model, train_X, train_Y,RATE=0.4
             m = torch.distributions.binomial.Binomial(total_count=1, probs=partial_rate_array)
             z = m.sample()
 
-            train_p_Y[torch.where(z == 1)] = 1.0  # 将这些标签作为候选标签。
+            train_p_Y[torch.where(z == 1)] = 1.0 
             partialY_list.append(train_p_Y)
 
         partialY = torch.cat(partialY_list, dim=0).float()
@@ -76,3 +76,4 @@ def test(args, epoch, test_loader, model):
             top1_acc.update(acc1[0])
 
     return top1_acc.avg
+
