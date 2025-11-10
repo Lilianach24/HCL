@@ -123,18 +123,15 @@ class SupCon_mLinear(nn.Module):
     def __init__(self, feat_dim=128, num_class=100, input_dim=768):
         super(SupCon_mLinear, self).__init__()
 
-        # 编码器：将输入的768维特征映射到feat_dim维
         self.encoder = nn.Linear(input_dim, feat_dim)
 
-        # 添加两个额外的全连接层
-        self.fc = CLIPLinearModel(num_classes=num_class)  # 第一个隐藏层
-        # self.fc2 = CLIPLinearModel(num_classes=num_class)  # 第二个隐藏层
-        # self.fc3 = CLIPLinearModel(num_classes=num_class)  # 第二个隐藏层
+        self.fc = CLIPLinearModel(num_classes=num_class) 
+        # self.fc2 = CLIPLinearModel(num_classes=num_class) 
+        # self.fc3 = CLIPLinearModel(num_classes=num_class) 
 
-        # 分类层：最终的分类器
         # self.fc4 = nn.Linear(128, num_class)
 
-        # 激活函数
+        # Activation function
         self.relu = nn.ReLU()
 
     def forward(self, x):
