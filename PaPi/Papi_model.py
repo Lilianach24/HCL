@@ -91,15 +91,12 @@ class PaPiNet(nn.Module):
                 'head not supported: {}'.format(head))
 
     def forward(self, x):
-        # 1. 使用self.encoder提取特征 (用于对比学习)
         with torch.no_grad():
             feat = self.encoder.encode_image(x).squeeze(-1).float()
         
-        # 2. 使用self.head处理特征
         feat_c = self.head(feat)
         
-        # 3. 使用self.fc进行分类 (需要传入原始图像)
-        _, logits = self.fc(x)  # 注意：这里传入原始图像而不是特征
+        _, logits = self.fc(x)
         
         return logits, F.normalize(feat_c, dim=1)
 
@@ -128,3 +125,4 @@ def get_entropy(logits):
     probs = F.softmax(logits, dim=1)
     log_probs = torch.log(probs + 1e-7)  # avoid NaN
     return -(probs * log_probs).sum(1)
+
