@@ -29,7 +29,7 @@ from utils.utils import AverageMeter, get_num_classes
 parser = argparse.ArgumentParser(description='PyTorch implementation of SPMI')
 # parser.add_argument('--exp_type', default='rand', type=str, choices=['rand', 'ins'], help='different exp-types')
 parser.add_argument('--dataset', default='CIFAR100', type=str,
-                    choices=["CIFAR100", "tiny-imagenet-200", "stanford_cars", "caltech-101", "food-101", 'EuroSAT'],
+                    choices=["CIFAR100", "tiny-imagenet-200", "stanford_cars", "caltech-101", "food-101"],
                     help='dataset name')
 parser.add_argument('--exp_dir', default='./spmi_result', type=str,
                     help='experiment directory for saving checkpoints and logs')
@@ -189,24 +189,6 @@ def main_worker(gpu, args):
     if args.gpu is not None:
         print("Use GPU: {} for training\n".format(args.gpu))
 
-    # print("=> creating model '{}'\n".format(args.arch))
-
-    # combinations = [
-    #     ([0]),
-    #     ([1]),
-    #     ([2]),
-    #     ([0, 1]),
-    #     ([1, 2]),
-    #     ([0, 1, 2])
-    #     # (8, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
-    # ]
-    #
-    # # # 添加三组随机组合
-    # for _ in range(3):
-    #     sample_length = random.randint(1, 3)  # 随机选择 sample_classes（1 或 2）
-    #     conceal_label = random.sample(range(10), sample_length)  # 随机选择两个 conceal_label，范围是 0 到 9
-    #     combinations.append(conceal_label)
-
     # Prepare Excel sheet for saving results
     sheet.write(0, 0, 'Epoch')
     sheet.write(0, 1, 'Train_loss_cls')
@@ -232,14 +214,7 @@ def main_worker(gpu, args):
 
     loss_v4_func = v4Loss(predicted_score_cls=uniform_confidence)
 
-    # Start Training
-    # 添加一个外部循环，跑三次训练
-    # num_trials = 3
-    # best_accuracies = []
-    # for trial in range(num_trials):
-    #     print(f'\n################ Start Training Trial {trial + 1}... ################')
-
-    # 初始化模型
+    # initial
     model = Model(args, clip_mlinear)
     model = model.cuda(args.gpu)
 
@@ -277,10 +252,8 @@ def main_worker(gpu, args):
         sheet.write(epoch + 1, 7, partial_cand_num)
         sheet.write(epoch + 1, 8, error_unlabeled)
         sheet.write(epoch + 1, 9, unlabeled_cand_num)
-        # 生成文件路径
         savepath = '{}/result_{}_pr_{}_seed_{}.xls'.format(
             output_path, args.dataset, args.partial_rate, args.seed)
-        # 保存结果到该文件
         book.save(savepath)
 
         if epoch == args.epochs - 1:
@@ -293,17 +266,6 @@ def main_worker(gpu, args):
 
         logging.info(
             f'Epoch {epoch + 1}: Train_Acc {acc_train_cls.avg}, Test_Acc {acc_test}, Best_Acc {best_acc}. (lr:{optimizer.param_groups[0]["lr"]})')
-
-        # # 保存每次试验的最佳验证精度
-        # best_accuracies.append(best_acc.cpu().numpy())
-        # # 计算三次验证精度的平均值和标准差
-        # mean_acc = np.mean(best_accuracies)
-        # std_acc = np.std(best_accuracies)
-
-        # logging.info(f"Validation Accuracy : {mean_acc:.2f} ± {std_acc:.2f}\n")
-        # logging.info(f"Mean Validation Accuracy : {mean_acc:.2f}\n"
-        #              f"Std Accuracy: {std_acc:.2f}\n"
-        #              f"Best Accuracy for each trial: {best_accuracies}\n")
 
 
 def train(labeled_loader, unlabeled_loader, model, sup_loss_func, optimizer, epoch, args):
@@ -318,11 +280,6 @@ def train(labeled_loader, unlabeled_loader, model, sup_loss_func, optimizer, epo
         # labeled_loader_iter = iter(labeled_loader)
         labeled_loader_iter = cycle(labeled_loader)
         for i in range(args.train_iteration):  # align with SSL methods
-            # try:
-            #     img_w, img2, labels, true_labels, batch_idx = next(labeled_loader_iter)
-            # except:
-            #     labeled_loader_iter = iter(labeled_loader)
-            #     img_w, img2, labels, true_labels, batch_idx = next(labeled_loader_iter)
             img_w, img2, labels, true_labels, batch_idx = next(labeled_loader_iter)
 
             X_w, Y, index = img_w.cuda(), labels.cuda(), batch_idx.cuda()
@@ -330,7 +287,7 @@ def train(labeled_loader, unlabeled_loader, model, sup_loss_func, optimizer, epo
 
             outputs = model(img_q=X_w)
             if isinstance(outputs, tuple):
-                logits = outputs[1]  # 获取分类预测结果
+                logits = outputs[1]
             else:
                 logits = outputs
 
@@ -380,12 +337,9 @@ def train(labeled_loader, unlabeled_loader, model, sup_loss_func, optimizer, epo
             last_posterior = unlabeled_loader.dataset.posterior
             consistency_criterion = nn.KLDivLoss(reduction='none').cuda()
 
-            # 计算类别平均后验概率（关键修改）
             if last_posterior.dim() == 2:
-                # last_posterior形状为[total_samples, num_classes]
                 class_posterior = torch.mean(last_posterior, dim=0, keepdim=True).to(device)  # [1, num_classes]
             else:
-                # last_posterior形状为[num_classes]或[1, num_classes]
                 class_posterior = last_posterior.to(device)
 
             model.eval()
@@ -610,9 +564,9 @@ def test(model, test_loader, args):
 
             outputs = model(img_q=images)
             if isinstance(outputs, tuple):
-                logits = outputs[1]  # 提取第一个元素作为 logits
+                logits = outputs[1]
             else:
-                logits = outputs  # 直接使用张量
+                logits = outputs
 
             acc1, acc5 = accuracy(logits, labels, topk=(1, 5))
             top1_acc.update(acc1[0])
