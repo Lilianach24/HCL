@@ -12,8 +12,6 @@ from typing import Tuple, Dict
 import numpy as np
 from torchvision import transforms
 
-from labeling.clip_labeling_classes import CIFAR100_generate_label_clip, Dataset_gengerate_label_clip
-from labeling.qwen_labeling_classes import CIFAR100_handler_train_TF_saved, DatasetHandlerTrainClip
 from utils.utils import get_transform
 
 class CustomDatasetWithProbs(Dataset):
@@ -317,9 +315,9 @@ class DatasetLoader:
             train_data, train_label, test_data, test_label = self.read_data_cifar_100()
             if pattern == "train":
                 if self.model_name == 'clip':
-                    datahandler = CIFAR100_generate_label_clip(self.root, dataset, train_data, train_label, self.input_size)
+                    pass
                 elif self.model_name == 'qwen':
-                    datahandler = CIFAR100_handler_train_TF_saved(self.root, dataset, train_data, train_label, self.input_size, self.model, self.processor)
+                    pass
             elif pattern == "val":
                 datahandler = CIFAR100DatasetHandler(test_data, test_label, self.input_size)
         else:
@@ -336,10 +334,9 @@ class DatasetLoader:
 
             if pattern == "train":
                 if self.model_name == 'clip':
-                    datahandler = Dataset_gengerate_label_clip(self.root, dataset, train_data, train_label, dataset_name=dataset, num_classes=num_classes,
-                                                 input_size=self.input_size)
+                    pass
                 elif self.model_name == 'qwen':
-                    datahandler = DatasetHandlerTrainClip(train_data, train_label, self.input_size, self.root, dataset, self.model, self.processor, num_classes)
+                    pass
             elif pattern == "val":
                 datahandler = BaseDatasetHandler(test_data, test_label, self.input_size)
 
@@ -362,6 +359,7 @@ class DatasetLoader:
         }
 
         return loader, info
+
 
 
 
